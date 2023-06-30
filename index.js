@@ -155,6 +155,18 @@ async function run() {
       res.send(result);
     });
 
+    app.patch("/classes/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)};
+      const updateStatus = {
+        $set: {
+          status: "approved",
+        },
+      };
+      const result = await classesCollection.updateOne(filter, updateStatus);
+      res.send(result);
+    });
+
     app.get("/approvedClasses", async (req, res) => {
       const query = {status: "approved"};
       const result = await classesCollection.find(query).toArray();
