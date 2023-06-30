@@ -54,6 +54,16 @@ async function run() {
     });
 
     // instructor verify
+    const verifyInstructor = async (req, res, next) => {
+      const email = req.decoded.email;
+      console.log(email);
+      const query = {email: email};
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "instructor") {
+        return res.status(403).send({error: true, message: "Forbidden Access"});
+      }
+      next();
+    };
 
     app.get("/users", verifyJWT, async (req, res) => {
       const result = await usersCollection.find().toArray();
@@ -74,6 +84,13 @@ async function run() {
         return res.send({message: "user already exists"});
       }
       const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+    // instructor api
+
+    app.get("/classes", async (req, res) => {
+      const result = await classesCollection.find().toArray();
       res.send(result);
     });
 
