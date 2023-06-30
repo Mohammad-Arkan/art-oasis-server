@@ -4,7 +4,7 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
-const {MongoClient, ServerApiVersion} = require("mongodb");
+const {MongoClient, ServerApiVersion, ObjectId} = require("mongodb");
 
 // middleware
 app.use(cors());
@@ -87,8 +87,6 @@ async function run() {
       res.send(result);
     });
 
-    // instructor api
-
     app.get("/classes", async (req, res) => {
       const result = await classesCollection.find().toArray();
       res.send(result);
@@ -97,6 +95,19 @@ async function run() {
     app.post("/classes", async (req, res) => {
       const newClass = req.body;
       const result = await classesCollection.insertOne(newClass);
+      res.send(result);
+    });
+
+    app.patch("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = {_id: new ObjectId(id)};
+      const updatedRole = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updatedRole);
       res.send(result);
     });
 
