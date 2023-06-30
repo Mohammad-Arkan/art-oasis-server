@@ -43,8 +43,19 @@ async function run() {
     await client.connect();
 
     const usersCollection = client.db("artOasisDB").collection("users");
+    const classesCollection = client.db("artOasisDB").collection("classes");
 
-    app.get("/users", async (req, res) => {
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1hr",
+      });
+      res.send(token);
+    });
+
+    // instructor verify
+
+    app.get("/users", verifyJWT, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
@@ -63,6 +74,12 @@ async function run() {
         return res.send({message: "user already exists"});
       }
       const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+    app.post("/classes", async (req, res) => {
+      const newClass = req.body;
+      const result = await classesCollection.insertOne(newClass);
       res.send(result);
     });
 
