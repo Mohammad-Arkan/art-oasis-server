@@ -98,13 +98,26 @@ async function run() {
       res.send(result);
     });
 
+    // make admin api
     app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
       const filter = {_id: new ObjectId(id)};
       const updatedRole = {
         $set: {
           role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updatedRole);
+      res.send(result);
+    });
+
+    // make instructor api
+    app.patch("/users/instructor/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)};
+      const updatedRole = {
+        $set: {
+          role: "instructor",
         },
       };
       const result = await usersCollection.updateOne(filter, updatedRole);
