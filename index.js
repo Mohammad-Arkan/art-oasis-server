@@ -56,7 +56,6 @@ async function run() {
     // instructor verify
     const verifyInstructor = async (req, res, next) => {
       const email = req.decoded.email;
-      console.log(email);
       const query = {email: email};
       const user = await usersCollection.findOne(query);
       if (user?.role !== "instructor") {
@@ -136,13 +135,33 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/class/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await classesCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.patch("/instructor/class/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const {feedback} = req.body;
+      const query = {_id: new ObjectId(id)};
+      const updateFeedback = {
+        $set: {
+          feedback: feedback,
+        },
+      };
+      const result = await classesCollection.updateOne(query, updateFeedback);
+      res.send(result);
+    });
+
     app.get(
       "/classes/instructor/:email",
       verifyJWT,
       verifyInstructor,
       async (req, res) => {
         const email = req.params.email;
-        console.log(email);
         const query = {instructorEmail: email};
         const result = await classesCollection.find(query).toArray();
         res.send(result);
