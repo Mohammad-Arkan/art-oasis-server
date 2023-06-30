@@ -136,14 +136,14 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/classes", async (req, res) => {
+    app.post("/classes", verifyJWT, verifyInstructor, async (req, res) => {
       const newClass = req.body;
       const result = await classesCollection.insertOne(newClass);
       res.send(result);
     });
 
     // make admin api
-    app.patch("/users/admin/:id", async (req, res) => {
+    app.patch("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = {_id: new ObjectId(id)};
       const updatedRole = {
@@ -156,17 +156,22 @@ async function run() {
     });
 
     // make instructor api
-    app.patch("/users/instructor/:id", async (req, res) => {
-      const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
-      const updatedRole = {
-        $set: {
-          role: "instructor",
-        },
-      };
-      const result = await usersCollection.updateOne(filter, updatedRole);
-      res.send(result);
-    });
+    app.patch(
+      "/users/instructor/:id",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const filter = {_id: new ObjectId(id)};
+        const updatedRole = {
+          $set: {
+            role: "instructor",
+          },
+        };
+        const result = await usersCollection.updateOne(filter, updatedRole);
+        res.send(result);
+      }
+    );
 
     await client.db("admin").command({ping: 1});
     console.log(
