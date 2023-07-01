@@ -145,6 +145,14 @@ async function run() {
       res.send(result);
     });
 
+    app.delete("/selected/class/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const query = {_id: new ObjectId(id)};
+      const result = await selectedCollection.deleteOne(query);
+      res.send(result);
+    });
+
     app.get("/classes", verifyJWT, verifyAdmin, async (req, res) => {
       const result = await classesCollection.find().toArray();
       res.send(result);
