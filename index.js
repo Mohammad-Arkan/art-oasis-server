@@ -144,7 +144,6 @@ async function run() {
 
     app.patch("/instructor/class/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
       const {feedback} = req.body;
       const query = {_id: new ObjectId(id)};
       const updateFeedback = {
@@ -174,12 +173,24 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/classes/:id", async (req, res) => {
+    app.patch("/approve/classes/:id", async (req, res) => {
       const id = req.params.id;
       const filter = {_id: new ObjectId(id)};
       const updateStatus = {
         $set: {
           status: "approved",
+        },
+      };
+      const result = await classesCollection.updateOne(filter, updateStatus);
+      res.send(result);
+    });
+
+    app.patch("/deny/classes/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)};
+      const updateStatus = {
+        $set: {
+          status: "denied",
         },
       };
       const result = await classesCollection.updateOne(filter, updateStatus);
