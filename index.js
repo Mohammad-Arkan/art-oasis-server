@@ -147,7 +147,6 @@ async function run() {
 
     app.delete("/selected/class/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
       const query = {_id: new ObjectId(id)};
       const result = await selectedCollection.deleteOne(query);
       res.send(result);
@@ -158,10 +157,25 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/class/:id", async (req, res) => {
+    app.get("/class/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
       const result = await classesCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.patch("/class/:id", verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const updateClassInfo = req.body;
+      const filter = {_id: new ObjectId(id)};
+      const updateClass = {
+        $set: {
+          className: updateClassInfo.className,
+          price: updateClassInfo.price,
+          availableSeats: updateClassInfo.availableSeats,
+        },
+      };
+      const result = await classesCollection.updateOne(filter, updateClass);
       res.send(result);
     });
 
