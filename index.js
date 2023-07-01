@@ -43,6 +43,7 @@ async function run() {
     await client.connect();
 
     const usersCollection = client.db("artOasisDB").collection("users");
+    const selectedCollection = client.db("artOasisDB").collection("selected");
     const classesCollection = client.db("artOasisDB").collection("classes");
 
     app.post("/jwt", (req, res) => {
@@ -127,6 +128,20 @@ async function run() {
         return res.send({message: "user already exists"});
       }
       const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+    // student related api
+    app.post("/selected/class", verifyJWT, async (req, res) => {
+      const selectedClass = req.body;
+      const result = await selectedCollection.insertOne(selectedClass);
+      res.send(result);
+    });
+
+    app.get("/selected/classes/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const query = {studentEmail: email};
+      const result = await selectedCollection.find(query).toArray();
       res.send(result);
     });
 
