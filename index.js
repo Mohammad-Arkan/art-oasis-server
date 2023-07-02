@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 const {MongoClient, ServerApiVersion, ObjectId} = require("mongodb");
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 
 // middleware
 app.use(cors());
@@ -42,9 +43,10 @@ async function run() {
   try {
     await client.connect();
 
-    const usersCollection = client.db("artOasisDB").collection("users");
+    const userCollection = client.db("artOasisDB").collection("users");
     const selectedCollection = client.db("artOasisDB").collection("selected");
-    const classesCollection = client.db("artOasisDB").collection("classes");
+    const classCollection = client.db("artOasisDB").collection("classes");
+    const paymentCollection = client.db("artOasisDB").collection("payments");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -58,7 +60,7 @@ async function run() {
     const verifyInstructor = async (req, res, next) => {
       const email = req.decoded.email;
       const query = {email: email};
-      const user = await usersCollection.findOne(query);
+      const user = await userCollection.findOne(query);
       if (user?.role !== "instructor") {
         return res.status(403).send({error: true, message: "Forbidden Access"});
       }
@@ -69,7 +71,7 @@ async function run() {
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
       const query = {email: email};
-      const user = await usersCollection.findOne(query);
+      const user = await userCollection.findOne(query);
       if (user?.role !== "admin") {
         return res.status(403).send({error: true, message: "Forbidden Access"});
       }
@@ -77,13 +79,13 @@ async function run() {
     };
 
     app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
-      const result = await usersCollection.find().toArray();
+      const result = await userCollection.find().toArray();
       res.send(result);
     });
 
     app.get("/instructors", async (req, res) => {
       const query = {role: "instructor"};
-      const result = await usersCollection.find(query).toArray();
+      const result = await userCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -93,7 +95,7 @@ async function run() {
         return res.send({student: false});
       }
       const query = {email: email};
-      const user = await usersCollection.findOne(query);
+      const user = await userCollection.findOne(query);
       const result = {student: user?.role == "student"};
       res.send(result);
     });
@@ -104,7 +106,7 @@ async function run() {
         return res.send({instructor: false});
       }
       const query = {email: email};
-      const user = await usersCollection.findOne(query);
+      const user = await userCollection.findOne(query);
       const result = {instructor: user?.role == "instructor"};
       res.send(result);
     });
@@ -115,7 +117,7 @@ async function run() {
         return res.send({admin: false});
       }
       const query = {email: email};
-      const user = await usersCollection.findOne(query);
+      const user = await userCollection.findOne(query);
       const result = {admin: user?.role == "admin"};
       res.send(result);
     });
@@ -123,11 +125,11 @@ async function run() {
     app.post("/users", async (req, res) => {
       const user = req.body;
       const query = {email: user.email};
-      const existingUser = await usersCollection.findOne(query);
+      const existingUser = await userCollection.findOne(query);
       if (existingUser) {
         return res.send({message: "user already exists"});
       }
-      const result = await usersCollection.insertOne(user);
+      const result = await userCollection.insertOne(user);
       res.send(result);
     });
 
@@ -153,14 +155,14 @@ async function run() {
     });
 
     app.get("/classes", verifyJWT, verifyAdmin, async (req, res) => {
-      const result = await classesCollection.find().toArray();
+      const result = await classCollection.find().toArray();
       res.send(result);
     });
 
     app.get("/class/:id", verifyJWT, async (req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
-      const result = await classesCollection.findOne(query);
+      const result = await classCollection.findOne(query);
       res.send(result);
     });
 
@@ -175,7 +177,7 @@ async function run() {
           availableSeats: updateClassInfo.availableSeats,
         },
       };
-      const result = await classesCollection.updateOne(filter, updateClass);
+      const result = await classCollection.updateOne(filter, updateClass);
       res.send(result);
     });
 
@@ -188,7 +190,7 @@ async function run() {
           feedback: feedback,
         },
       };
-      const result = await classesCollection.updateOne(query, updateFeedback);
+      const result = await classCollection.updateOne(query, updateFeedback);
       res.send(result);
     });
 
@@ -199,14 +201,22 @@ async function run() {
       async (req, res) => {
         const email = req.params.email;
         const query = {instructorEmail: email};
-        const result = await classesCollection.find(query).toArray();
+        const result = await classCollection.find(query).toArray();
         res.send(result);
       }
     );
 
     app.post("/classes", verifyJWT, verifyInstructor, async (req, res) => {
       const newClass = req.body;
-      const result = await classesCollection.insertOne(newClass);
+      const result = await classCollection.insertOne(newClass);
+      res.send(result);
+    });
+
+    app.get("/selected/class/:email/:id", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const id = req.params.id;
+      const filter = {studentEmail: email, _id: new ObjectId(id)};
+      const result = await selectedCollection.findOne(filter);
       res.send(result);
     });
 
@@ -218,7 +228,7 @@ async function run() {
           status: "approved",
         },
       };
-      const result = await classesCollection.updateOne(filter, updateStatus);
+      const result = await classCollection.updateOne(filter, updateStatus);
       res.send(result);
     });
 
@@ -230,13 +240,13 @@ async function run() {
           status: "denied",
         },
       };
-      const result = await classesCollection.updateOne(filter, updateStatus);
+      const result = await classCollection.updateOne(filter, updateStatus);
       res.send(result);
     });
 
     app.get("/approvedClasses", async (req, res) => {
       const query = {status: "approved"};
-      const result = await classesCollection.find(query).toArray();
+      const result = await classCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -249,7 +259,7 @@ async function run() {
           role: "admin",
         },
       };
-      const result = await usersCollection.updateOne(filter, updatedRole);
+      const result = await userCollection.updateOne(filter, updatedRole);
       res.send(result);
     });
 
@@ -262,8 +272,33 @@ async function run() {
           role: "instructor",
         },
       };
-      const result = await usersCollection.updateOne(filter, updatedRole);
+      const result = await userCollection.updateOne(filter, updatedRole);
       res.send(result);
+    });
+
+    // payment related api
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const {price} = req.body;
+      const amount = parseInt(price * 100);
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+    // payment related api
+    app.post("/payments", verifyJWT, async (req, res) => {
+      const payment = req.body;
+      const insertResult = await paymentCollection.insertOne(payment);
+      console.log(payment);
+      const query = {classId: payment.classId};
+      const deleteResult = await selectedCollection.deleteMany(query);
+
+      res.send({insertResult, deleteResult});
     });
 
     await client.db("admin").command({ping: 1});
