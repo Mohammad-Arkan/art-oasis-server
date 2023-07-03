@@ -294,11 +294,27 @@ async function run() {
     app.post("/payments", verifyJWT, async (req, res) => {
       const payment = req.body;
       const insertResult = await paymentCollection.insertOne(payment);
-      console.log(payment);
+      // console.log(payment);
       const query = {classId: payment.classId};
       const deleteResult = await selectedCollection.deleteMany(query);
 
       res.send({insertResult, deleteResult});
+    });
+
+    app.patch("/class/updateCount/:classId", async (req, res) => {
+      const classId = req.params.classId;
+      const filter = {_id: new ObjectId(classId)};
+      const classInfo = await classCollection.findOne(filter);
+      let enrolledStudents = classInfo.enrolledStudents;
+      let availableSeats = classInfo.availableSeats;
+
+      const updateClassInfo = {
+        $set: {
+          availableSeats: availableSeats - 1,
+          enrolledStudents: enrolledStudents + 1,
+        },
+      };
+      await classCollection.updateOne(filter, updateClassInfo);
     });
 
     await client.db("admin").command({ping: 1});
